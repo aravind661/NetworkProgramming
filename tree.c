@@ -13,8 +13,9 @@ Then it exits.
 5) Every process waits until all its children are exited and only then it will print. Parent exits printing "\nAll Children Exited\n".  
 
 Example output: Level  pid  ppid Position dots
-                2     2300  2287 3  ...   1   
-                2290  2286 5  ..... 1 ….  
+                2     2300  2287 3        ...
+                1     2290  2286 5        .....
+                1 ….  
 Files Expected: tree.c and makefile to compile your program.
 
 */
