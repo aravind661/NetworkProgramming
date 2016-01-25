@@ -1,6 +1,8 @@
 # SHM Client & SHM Server
 Clients and server that interact through shared memory
 
+*open in editor mode to understand the below illustration better*
+
 Programs shmclient.c and shmserver.c that do the following
              ___________
 c1---------->| S    M  |         ____________
