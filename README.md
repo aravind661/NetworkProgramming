@@ -1,48 +1,30 @@
-# RSHM API
-In this problem, goal is to facilitate two processes on two different systems use shared memory for IPC as if they are on the same system as shown in the diagram below.    
-1) P1 and P2 will use shared memory for inter process communication. But they use the following API instead of usual System V shared memory API. 
-            int rshmget(key_t key, size_t size);
-            void rshmat(int rshmid, void* addr);
-            int rshmdt(int rshmid, void* addr);
-            int rshmctl(int rshmid, int cmd);
-            void rshmChanged(int rshmid); 
-# rshmget():            
-API :  it prepares a message with appropriate contents and send to local TCP server. 
-TCP Server : It checks the key. If it already exists it returns the rshmid otherwise, it creates shared memory locally and stores the shmid. Generates the rshmid, a random number, and sends a message to other nodes about the new shared memory creation. Returns the rshmid. This node becomes the owner of the shared memory.
+# SHM Client & SHM Server
+Clients and server that interact through shared memory
 
-# rshmat():
-API: it prepares a message with appropriate contents and send to local TCP server. 
-TCP Server: It calls shmat() and returns the return address of shmat(). Sends a message to other nodes to increase ref count. 
-Remote TCP Servers: Increase ref count for the corresponding shm segment
+Programs shmclient.c and shmserver.c that do the following
+             ___________
+c1---------->| S    M  |         ____________
+             | H    E  |         |          |
+             | R    M  |-------->|  Server  |
+c2---------->| E    O  |         |          |
+             | D    R  |         ````````````
+c3---------->|      Y  |
+             ```````````
+             
+1) Server creates a shared memory of 1 MB. Shared memory is protected by a semaphore S. Clients write messages into shared memory. Server sums up a and b and put the result into total.
 
-# rshmdt():
-API: it prepares a message with appropriate contents and send to local TCP server. 
-TCP Server: It calls the shmdt() and sends message to other nodes to decrease ref count.  
-Remote TCP Server: Decrease ref count for the corresponding shm segment
+2)  Message is of the format:
+            struct message{
+                        int type;
+                        int pid; //client's pid
+                        int slno; //incremented for every message
+                        int a; //any number
+                        int b; //any number
+                        int total;//total of a and b, processed by server
+            }; 
+            
+3) A client writes a message m of type 1 into shared memory by acquiring sizeof(m) bytes from S. A client can write several messages into shared memory at one time. But as soon as a client completes writing, control is given to server to read a message from the shared memory.
 
-# rshmctl():
-API: only command applicable is IPC_RMID. it prepares a message with appropriate contents and send to local TCP server. 
-TCP Server: It calls the shmctl() and informs the same to other nodes using multicast message
-Rempte TCP Servers: Remove the shared memory corresponding to rshmid that is received from the owner
+4) Server reads one message at a time, processes and writes the reply with type of client's pid into the shared memory after acquiring necessary bytes from S. Once the server writes the reply, control is given to the client, who needs to read that reply. Such a client can't write but only read from shared memory. After the client completes reading, either server (for reading) or any client (for writing) can get chance to access shared memory.
 
-# rshmChanged():
-API: After completing the write operation, the application calls rshmChanged().it prepares a message with appropriate contents and        send to local TCP server.
-TCP Server: The server reads the data from shared memory and sends to all other nodes to update their local shared memory segments. 
-Remote TCP Server: Update the local shared memory corresponding to rshmid received.
-
-TCP Servers: When the server starts up, it sends hello message to the group. It rears the replies and updates its internal state tables. 
-Rempte TCP Server: Reply with the local state table 
-
-2) TCP server stores the following information for every shared memory segment request it receives.
-            struct rshminfo{ 
-                  int rshmid;           /*unique id across all systems. created by the first system*/ 
-                  key_t key;            /*key used to create shm segment*/
-                  int shmid;            /*shmid returned by the local system*/
-                  void *addr;           /*address returned by the local system*/
-                  int ref_count;        /*no of processes attached to*/ 
-                  struct sockaddr_in *remote_addrs; /* list of remote end points*/
-            };
-
-3) TCP server maintains connections to all remote TCP servers. It uses message queues for communicating with local system processes and TCP connections to communicate with remote systems.  
-
-Implement client.c (run as P1 or P2), rshmAPI.c (implementation of API) and rshmServer.c (run as TCP server) for the above specifications. client.c uses rshmAPI.c.
+Use semaphores wherever necessary to control access to shared memory. Print client’s pid, slno, a and b, shmid, semaphore value for every message the client puts in. Print server’s pid (with label “server”),  slno, a, b, sum of a and b,  shmid, and semaphore value for every message it processes. When server is exited through ctrl-c, it prints pid wise count of messages it processed. 
